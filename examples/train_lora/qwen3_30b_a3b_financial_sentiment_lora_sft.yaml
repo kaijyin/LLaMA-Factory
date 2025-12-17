@@ -1,0 +1,54 @@
+### Qwen3-30B-A3B 金融情感分析微调配置 (MoE 模型)
+### MoE 模型激活参数仅 3B，显存需求低，单卡或少量卡即可训练
+
+### model
+model_name_or_path: /home/user150/models/Qwen3-30B-A3B  # MoE 模型路径
+trust_remote_code: true  # 信任远程代码，加载自定义模型必须开启
+
+### method
+stage: sft  # 训练阶段: sft(监督微调)
+do_train: true  # 是否执行训练
+finetuning_type: lora  # 微调类型: lora
+lora_rank: 32  # MoE模型可用更大的rank，因为激活参数少
+lora_alpha: 64  # LoRA缩放因子，通常设为 2×rank
+lora_dropout: 0.05  # LoRA dropout，防止过拟合
+lora_target: all  # LoRA目标层: all(所有线性层)
+
+### dataset
+dataset: financial_sentiment_train  # 数据集名称
+template: qwen3_nothink  # 对话模板（MoE模型同样使用qwen3模板）
+cutoff_len: 512  # 序列最大长度，MoE模型显存充裕可以用更长
+max_samples: 50000  # 最大训练样本数
+overwrite_cache: true  # 是否覆盖数据集缓存
+preprocessing_num_workers: 16  # 数据预处理并行进程数
+dataloader_num_workers: 4  # 数据加载并行进程数
+
+### output
+output_dir: saves/qwen3-30b-a3b/lora/financial_sentiment  # 模型输出目录
+logging_steps: 10  # 每N步记录一次日志
+save_steps: 500  # 每N步保存一次检查点
+save_total_limit: 3  # 最多保留的检查点数量
+plot_loss: true  # 是否绘制损失曲线
+overwrite_output_dir: true  # 是否覆盖输出目录
+save_only_model: false  # 是否只保存模型权重
+report_to: tensorboard  # 日志报告工具
+
+### train
+per_device_train_batch_size: 4  # MoE模型显存占用低，可用更大batch
+gradient_accumulation_steps: 4  # 梯度累积步数，等效batch_size = 4×4×GPU数
+learning_rate: 2.0e-5  # 学习率
+num_train_epochs: 3.0  # 训练轮数
+lr_scheduler_type: cosine  # 学习率调度器
+warmup_ratio: 0.1  # 预热比例
+bf16: true  # 使用BF16混合精度训练
+ddp_timeout: 180000000  # DDP超时时间
+gradient_checkpointing: true  # 梯度检查点
+flash_attn: fa2  # Flash Attention
+# 不需要 DeepSpeed，单卡/少量卡即可训练
+# deepspeed: examples/deepspeed/ds_z3_config.json
+
+### eval
+eval_dataset: financial_sentiment_eval  # 验证数据集名称
+per_device_eval_batch_size: 4  # 每个GPU的验证batch大小
+eval_strategy: steps  # 验证策略
+eval_steps: 500  # 每N步执行一次验证

@@ -1,0 +1,9 @@
+### 推理配置文件
+model_name_or_path: /home/user150/models/Qwen3-14B
+adapter_name_or_path: /home/user150/LLaMA-Factory/saves/qwen3-14b/qlora/financial_sentiment/checkpoint-2000
+template: qwen3_nothink
+finetuning_type: lora
+
+# 如果使用 QLoRA 训练的，需要加上量化配置
+quantization_bit: 4
+quantization_method: bitsandbytes

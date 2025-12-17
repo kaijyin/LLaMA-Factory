@@ -1,0 +1,56 @@
+### Qwen3-32B 金融情感分析微调配置 (DeepSpeed ZeRO-3 + CPU Offload)
+### 适用于显存紧张的情况，将优化器状态和参数卸载到CPU内存
+### 显存占用更低，但训练速度会慢 30-50%
+
+### model
+model_name_or_path: /home/user150/models/Qwen3-32B  # 基础模型路径
+trust_remote_code: true  # 信任远程代码，加载自定义模型必须开启
+
+### method
+stage: sft  # 训练阶段: sft(监督微调), pt(预训练), rm(奖励模型), ppo, dpo, kto
+do_train: true  # 是否执行训练
+finetuning_type: lora  # 微调类型: lora, freeze, full
+lora_rank: 32  # LoRA秩，越大表达能力越强，显存占用越大 (推荐: 8/16/32/64)
+lora_alpha: 64  # LoRA缩放因子，通常设为 2×rank
+lora_dropout: 0.05  # LoRA dropout，防止过拟合
+lora_target: all  # LoRA目标层: all(所有线性层), q_proj,v_proj(仅注意力)
+
+### dataset
+dataset: financial_sentiment_train  # 数据集名称，需在 dataset_info.json 中配置
+template: qwen3  # 对话模板，需与模型匹配
+cutoff_len: 512  # 序列最大长度，情感分析文本较短，512足够
+max_samples: 50000  # 最大训练样本数，设为较大值以使用全部数据
+overwrite_cache: true  # 是否覆盖数据集缓存
+preprocessing_num_workers: 16  # 数据预处理并行进程数
+dataloader_num_workers: 4  # 数据加载并行进程数
+
+### output
+output_dir: saves/qwen3-32b/lora/financial_sentiment_ds3_offload  # 模型输出目录(DS3 Offload版本)
+logging_steps: 10  # 每N步记录一次日志
+save_steps: 500  # 每N步保存一次检查点
+save_total_limit: 3  # 最多保留的检查点数量
+plot_loss: true  # 是否绘制损失曲线
+overwrite_output_dir: true  # 是否覆盖输出目录
+save_only_model: false  # 是否只保存模型权重(不保存优化器状态)
+report_to: tensorboard  # 日志报告工具: tensorboard, wandb, none
+
+### train
+per_device_train_batch_size: 2  # 每个GPU的训练batch大小，Offload后显存更充裕
+gradient_accumulation_steps: 8  # 梯度累积步数，等效batch_size = 2×8×GPU数
+learning_rate: 2.0e-5  # 学习率，大模型建议使用较小值 (1e-5 ~ 5e-5)
+num_train_epochs: 3.0  # 训练轮数，分类任务2-3轮通常足够
+lr_scheduler_type: cosine  # 学习率调度器: linear, cosine, constant
+warmup_ratio: 0.1  # 预热比例，前10%的步数逐渐增加学习率
+bf16: true  # 使用BF16混合精度训练，节省显存
+ddp_timeout: 180000000  # DDP超时时间(毫秒)，多卡训练时防止超时
+gradient_checkpointing: true  # 梯度检查点，用显存换计算，大幅节省显存
+flash_attn: fa2  # Flash Attention版本: auto, fa2, disabled
+deepspeed: examples/deepspeed/ds_z3_offload_config.json  # DeepSpeed ZeRO-3 + CPU Offload配置
+resume_from_checkpoint: null  # 从检查点恢复训练，设为检查点路径即可续训
+
+### eval
+eval_dataset: financial_sentiment_eval  # 验证数据集名称
+# val_size: 0.1  # 验证集比例(当不指定eval_dataset时使用)
+per_device_eval_batch_size: 1  # 每个GPU的验证batch大小
+eval_strategy: steps  # 验证策略: steps(按步数), epoch(按轮次), no(不验证)
+eval_steps: 500  # 每N步执行一次验证

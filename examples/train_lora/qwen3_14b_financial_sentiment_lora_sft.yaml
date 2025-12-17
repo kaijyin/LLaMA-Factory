@@ -1,0 +1,57 @@
+### Qwen3-14B 金融情感分析微调配置 (QLoRA 4-bit)
+### 14B Dense 模型，使用 QLoRA 可在单卡上训练
+
+### model
+model_name_or_path: /home/user150/models/Qwen3-14B
+trust_remote_code: true
+
+### quantization (QLoRA 核心配置)
+quantization_bit: 4                # 4-bit 量化
+quantization_method: bitsandbytes  # 使用 bitsandbytes
+
+### method
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_rank: 16           # QLoRA 可用稍大的 rank
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target: all
+
+### dataset
+dataset: financial_sentiment_train
+template: qwen3_nothink
+cutoff_len: 512
+max_samples: 50000
+overwrite_cache: true
+preprocessing_num_workers: 16
+dataloader_num_workers: 4
+
+### output
+output_dir: saves/qwen3-14b/qlora/financial_sentiment
+logging_steps: 10
+save_steps: 500
+save_total_limit: 3
+plot_loss: true
+overwrite_output_dir: true
+save_only_model: false
+report_to: tensorboard
+
+### train
+per_device_train_batch_size: 4    # QLoRA 显存占用低，可增大 batch
+gradient_accumulation_steps: 4
+learning_rate: 2.0e-4             # QLoRA 通常用更大学习率
+num_train_epochs: 3.0
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+bf16: true
+ddp_timeout: 180000000
+gradient_checkpointing: true
+flash_attn: fa2
+# 不使用 DeepSpeed，QLoRA 单卡即可
+
+### eval
+eval_dataset: financial_sentiment_eval
+per_device_eval_batch_size: 4
+eval_strategy: steps
+eval_steps: 500

@@ -1,0 +1,54 @@
+### ==================== 模型配置 ====================
+model_name_or_path: /home/user150/models/Qwen3-14B  # 预训练模型路径，可以是本地路径或 HuggingFace 模型名
+trust_remote_code: true  # 是否信任远程代码，Qwen 等模型需要设为 true 才能加载自定义代码
+
+### ==================== 量化配置 (QLoRA) ====================
+quantization_bit: 4                # 量化位数: 4-bit 量化，每个参数只占 0.5 字节，显存减少约 75%
+quantization_method: bitsandbytes  # 量化方法: 使用 bitsandbytes 库的 NF4 量化
+
+### ==================== 训练方法配置 ====================
+stage: sft           # 训练阶段: sft(监督微调), pt(预训练), rm(奖励模型), ppo, dpo, kto 等
+do_train: true       # 是否执行训练，设为 false 则只做评估
+finetuning_type: lora  # 微调类型: lora(低秩适配), full(全量微调), freeze(冻结部分层)
+lora_rank: 8         # LoRA 秩(r): 低秩矩阵的维度，越大表达能力越强但参数越多，常用 8/16/32/64
+lora_alpha: 16       # LoRA 缩放系数(α): 实际缩放为 α/r，这里 16/8=2，控制 LoRA 对原模型的影响程度
+lora_dropout: 0.05   # LoRA Dropout: 防止过拟合，训练时随机丢弃 5% 的 LoRA 连接
+lora_target: all     # LoRA 目标层: all(所有线性层), 或指定如 q_proj,v_proj,k_proj,o_proj,gate_proj,up_proj,down_proj
+
+### ==================== 数据集配置 ====================
+dataset: financial_sentiment_train  # 数据集名称，需在 data/dataset_info.json 中注册
+template: qwen3_nothink  # 对话模板: 定义 prompt 格式，不同模型需要不同模板，nothink 表示不启用思考模式
+cutoff_len: 512      # 最大序列长度: 超过此长度的样本会被截断，影响显存占用
+max_samples: 50000   # 最大样本数: 限制训练样本数量，用于快速实验或数据集太大时
+overwrite_cache: true  # 是否覆盖缓存: true 则重新处理数据，false 则使用之前的缓存
+preprocessing_num_workers: 16  # 数据预处理进程数: 多进程加速数据 tokenization
+dataloader_num_workers: 4  # DataLoader 工作进程数: 多进程加载数据到 GPU
+
+### ==================== 输出配置 ====================
+output_dir: saves/qwen3-14b/no_qlora/financial_sentiment_ds3  # 模型保存目录: checkpoint、日志、loss 图都存这里
+logging_steps: 10    # 日志记录频率: 每 10 步记录一次 loss 等指标
+save_steps: 500      # 模型保存频率: 每 500 步保存一个 checkpoint
+save_total_limit: 3  # 最大保存数量: 只保留最近 3 个 checkpoint，节省磁盘空间
+plot_loss: true      # 是否绘制损失曲线: 训练结束后生成 loss 图
+overwrite_output_dir: true  # 是否覆盖输出目录: true 则删除旧的训练结果
+save_only_model: false  # 是否只保存模型: false 则同时保存优化器状态，可断点续训
+report_to: tensorboard  # 日志上报工具: tensorboard, wandb, none 等
+
+### ==================== 训练超参数 ====================
+per_device_train_batch_size: 1  # 每卡训练批次大小: 受显存限制，通常设为 1-4
+gradient_accumulation_steps: 16  # 梯度累积步数: 有效批次 = batch_size × 累积步数 × 卡数 = 1×16×8=128
+learning_rate: 2.0e-5  # 学习率: LoRA 常用 1e-4~2e-4，全量微调常用 1e-5~5e-5
+num_train_epochs: 1.0  # 训练轮数: 遍历整个数据集的次数
+lr_scheduler_type: cosine  # 学习率调度器: cosine(余弦退火), linear(线性衰减), constant(恒定)
+warmup_ratio: 0.1    # 预热比例: 前 10% 步数学习率从 0 线性增加到设定值，防止训练初期不稳定
+bf16: true           # 使用 BF16 精度: 每个参数 2 字节，比 FP32 省一半显存，训练更快
+ddp_timeout: 180000000  # DDP 超时时间(秒): 多卡通信超时阈值，设大防止大模型加载时超时
+gradient_checkpointing: true  # 梯度检查点: 用时间换显存，不存储中间激活值而是重新计算，显存减少约 60%
+flash_attn: fa2      # Flash Attention 版本: fa2 是 Flash Attention 2，加速注意力计算并省显存
+deepspeed: examples/deepspeed/ds_z3_config.json  # DeepSpeed 配置: ZeRO-3 将模型参数分片到多卡，支持训练超大模型
+
+### ==================== 评估配置 ====================
+eval_dataset: financial_sentiment_eval  # 评估数据集名称
+per_device_eval_batch_size: 2  # 每卡评估批次大小: 评估时不需要梯度，可以设大一些
+eval_strategy: steps  # 评估策略: steps(按步数), epoch(按轮次), no(不评估)
+eval_steps: 500      # 评估频率: 每 500 步评估一次，计算验证集 loss

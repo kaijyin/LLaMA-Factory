@@ -1,0 +1,29 @@
+{
+  "financial_sentiment_train": {
+    "file_name": "financial_sentiment_train.json",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "system": "system"
+    }
+  },
+  "financial_sentiment_eval": {
+    "file_name": "financial_sentiment_eval.json",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "system": "system"
+    }
+  },
+  "financial_sentiment_all": {
+    "file_name": "financial_sentiment_all.json",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "system": "system"
+    }
+  }
+}
