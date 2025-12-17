@@ -8,8 +8,8 @@
       "system": "system"
     }
   },
-  "financial_sentiment_eval": {
-    "file_name": "financial_sentiment_eval.json",
+  "financial_sentiment_test": {
+    "file_name": "financial_sentiment_test.json",
     "columns": {
       "prompt": "instruction",
       "query": "input",

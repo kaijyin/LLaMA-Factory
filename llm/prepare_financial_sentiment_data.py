@@ -103,6 +103,7 @@ def save_raw_dataset(dataset, name: str, output_dir: str):
 def process_fpb(subset: str = "sentences_allagree", output_dir: str = None) -> List[Dict]:
     """
     处理 Financial PhraseBank 数据集
+    直接从 HuggingFace 下载 zip 文件并解析
 
     Args:
         subset: 数据子集，可选值:
@@ -112,29 +113,69 @@ def process_fpb(subset: str = "sentences_allagree", output_dir: str = None) -> L
             - sentences_50agree: 50%以上一致 (~4,846条)
         output_dir: 输出目录，用于保存原始数据
     """
+    import requests
+    import zipfile
+    import io
+    
     print(f"Loading Financial PhraseBank ({subset})...")
-
+    
+    # subset 到文件名的映射
+    subset_file_map = {
+        "sentences_allagree": "Sentences_AllAgree.txt",
+        "sentences_75agree": "Sentences_75Agree.txt",
+        "sentences_66agree": "Sentences_66Agree.txt",
+        "sentences_50agree": "Sentences_50Agree.txt",
+    }
+    
+    txt_filename = subset_file_map.get(subset)
+    if not txt_filename:
+        print(f"Unknown subset: {subset}")
+        return []
+    
+    # 下载 URL (使用镜像站点)
+    hf_endpoint = os.environ.get("HF_ENDPOINT", "https://huggingface.co")
+    download_url = f"{hf_endpoint}/datasets/takala/financial_phrasebank/resolve/main/data/FinancialPhraseBank-v1.0.zip"
+    
     try:
-        # 尝试不同的加载方式
-        try:
-            dataset = load_dataset("takala/financial_phrasebank", subset)
-        except Exception as e1:
-            print(f"  First attempt failed: {e1}")
-            # 尝试使用 FinancialPhraseBank 的替代仓库
-            try:
-                dataset = load_dataset("financial_phrasebank", subset)
-            except Exception as e2:
-                print(f"  Second attempt failed: {e2}")
-                raise e1
-
-        data = dataset["train"]
-
-        # 保存原始数据
+        print(f"  Downloading from: {download_url}")
+        response = requests.get(download_url, timeout=60, allow_redirects=True)
+        response.raise_for_status()
+        
+        # 解压 zip 文件
+        with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
+            # 读取对应的 txt 文件
+            txt_path = f"FinancialPhraseBank-v1.0/{txt_filename}"
+            with zf.open(txt_path) as f:
+                file_content = f.read().decode('latin-1')
+        
+        # 解析数据
+        data = []
+        for line in file_content.strip().split('\n'):
+            line = line.strip()
+            if not line or '@' not in line:
+                continue
+            parts = line.rsplit('@', 1)
+            if len(parts) == 2:
+                sentence, label = parts
+                data.append({
+                    'sentence': sentence.strip(),
+                    'label': label.strip(),
+                })
+        
+        print(f"  Downloaded and parsed {len(data)} samples")
+        
+        # 保存原始数据到 raw_data 目录
         if output_dir:
-            save_raw_dataset(dataset, f"fpb_{subset}", output_dir)
-
+            raw_dir = os.path.join(output_dir, "raw_data")
+            os.makedirs(raw_dir, exist_ok=True)
+            raw_file = os.path.join(raw_dir, f"fpb_{subset}_raw.json")
+            raw_data = [{**item, '_split': 'train'} for item in data]
+            with open(raw_file, 'w', encoding='utf-8') as f:
+                json.dump(raw_data, f, ensure_ascii=False, indent=2)
+            print(f"  📁 Saved raw data: {raw_file} ({len(data)} samples)")
+    
     except Exception as e:
-        print(f"Error loading FPB: {e}")
+        print(f"Error downloading FPB: {e}")
         print("FPB dataset failed to load. Skipping...")
         return []
 
@@ -258,17 +299,17 @@ def process_nwgi(output_dir: str = None) -> List[Dict]:
     return processed
 
 
-def split_dataset(data: List[Dict], train_ratio: float = 0.9, seed: int = 42) -> tuple:
-    """将数据集划分为训练集和验证集"""
+def split_dataset(data: List[Dict], train_ratio: float = 0.8, seed: int = 42) -> tuple:
+    """将数据集划分为训练集和测试集"""
     random.seed(seed)
     shuffled = data.copy()
     random.shuffle(shuffled)
 
     split_idx = int(len(shuffled) * train_ratio)
     train_data = shuffled[:split_idx]
-    eval_data = shuffled[split_idx:]
+    test_data = shuffled[split_idx:]
 
-    return train_data, eval_data
+    return train_data, test_data
 
 
 def save_dataset(data: List[Dict], filepath: str):
@@ -294,8 +335,8 @@ def generate_dataset_info(output_dir: str) -> Dict:
                 "system": "system",
             },
         },
-        "financial_sentiment_eval": {
-            "file_name": "financial_sentiment_eval.json",
+        "financial_sentiment_test": {
+            "file_name": "financial_sentiment_test.json",
             "columns": {
                 "prompt": "instruction",
                 "query": "input",
@@ -365,7 +406,7 @@ def main():
         help="FPB subset to use",
     )
     parser.add_argument(
-        "--train_ratio", type=float, default=0.9, help="Ratio of training data"
+        "--train_ratio", type=float, default=0.8, help="Ratio of training data"
     )
     parser.add_argument(
         "--seed", type=int, default=42, help="Random seed for data splitting"
@@ -428,11 +469,11 @@ def main():
     # 打印统计信息
     print_statistics(all_data, "All Combined")
 
-    # 划分训练集和验证集
-    train_data, eval_data = split_dataset(all_data, args.train_ratio, args.seed)
+    # 划分训练集和测试集
+    train_data, test_data = split_dataset(all_data, args.train_ratio, args.seed)
 
     print_statistics(train_data, "Training Set")
-    print_statistics(eval_data, "Evaluation Set")
+    print_statistics(test_data, "Test Set")
 
     print("\n" + "="*50)
     print("Step 2: Saving processed datasets...")
@@ -443,7 +484,7 @@ def main():
         train_data, os.path.join(args.output_dir, "financial_sentiment_train.json")
     )
     save_dataset(
-        eval_data, os.path.join(args.output_dir, "financial_sentiment_eval.json")
+        test_data, os.path.join(args.output_dir, "financial_sentiment_test.json")
     )
     save_dataset(
         all_data, os.path.join(args.output_dir, "financial_sentiment_all.json")
@@ -467,7 +508,7 @@ def main():
     print("📂 OUTPUT FILES:")
     print("=" * 50)
     print(f"  📄 {args.output_dir}/financial_sentiment_train.json  (训练集)")
-    print(f"  📄 {args.output_dir}/financial_sentiment_eval.json   (验证集)")
+    print(f"  📄 {args.output_dir}/financial_sentiment_test.json   (测试集)")
     print(f"  📄 {args.output_dir}/financial_sentiment_all.json    (完整数据)")
     print(f"  📄 {args.output_dir}/financial_sentiment_dataset_info.json (配置)")
     if save_raw:
@@ -483,7 +524,7 @@ def main():
     print("2. Use the training config file to start training")
     print(f"\nTotal samples prepared: {len(all_data)}")
     print(f"  - Training: {len(train_data)}")
-    print(f"  - Evaluation: {len(eval_data)}")
+    print(f"  - Test: {len(test_data)}")
 
 
 if __name__ == "__main__":

@@ -48,7 +48,7 @@ flash_attn: fa2      # Flash Attention 版本: fa2 是 Flash Attention 2，加�
 deepspeed: examples/deepspeed/ds_z3_config.json  # DeepSpeed 配置: ZeRO-3 将模型参数分片到多卡，支持训练超大模型
 
 ### ==================== 评估配置 ====================
-eval_dataset: financial_sentiment_eval  # 评估数据集名称
+val_size: 0.1        # 验证集比例: 从训练集中划分 10% 作为验证集，即训练集的 90% 用于实际训练
 per_device_eval_batch_size: 2  # 每卡评估批次大小: 评估时不需要梯度，可以设大一些
 eval_strategy: steps  # 评估策略: steps(按步数), epoch(按轮次), no(不评估)
 eval_steps: 500      # 评估频率: 每 500 步评估一次，计算验证集 loss
