@@ -1,0 +1,2 @@
+ CUDA_VISIBLE_DEVICES=5,6,7 nohup llamafactory-cli train examples/train_lora/qwen3_14b_financial_sentiment_lora_sft_ds3_test.yaml > train_log.txt 2>&1
+tensorboard --logdir=saves/qwen3-14b/qlora8_z3_test2/financial_sentiment_ds3/runs --port=6006 --bind_all &
