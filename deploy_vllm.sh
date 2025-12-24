@@ -2,7 +2,7 @@
 # 使用 vLLM 部署合并后的模型（多卡版本）并处理数据
 
 # ==================== 配置 ====================
-export CUDA_VISIBLE_DEVICES=5,6  # 使用 GPU 5,6
+export CUDA_VISIBLE_DEVICES=6,7  # 使用 GPU 5,6
 MERGED_MODEL_PATH="/home/user150/models/Qwen3-14B-Financial-Sentiment-Merged"
 LOG_FILE="vllm_server.log"
 
@@ -34,11 +34,8 @@ echo "vLLM server started with PID $VLLM_PID. Logs in $LOG_FILE"
 
 # ==================== Step 3: 运行数据处理脚本 ====================
 echo "Running data processing script..."
-python scripts/process_dfcf.py
+nohup python scripts/process_dfcf.py &
 
-# ==================== Step 4: 清理 ====================
-echo "Processing complete. Stopping vLLM server..."
-kill $VLLM_PID
 
 
 

@@ -1,0 +1,11 @@
+### 合并 LoRA 权重到基础模型
+model_name_or_path: /home/user150/models/Qwen3-14B
+adapter_name_or_path: /home/user150/LLaMA-Factory/saves/qwen3-14b/lora8_z3_test/financial_sentiment_ds3
+template: qwen3_nothink
+finetuning_type: lora
+
+# 导出配置
+export_dir: /home/user150/models/Qwen3-14B-Financial-Sentiment-DS3-Merged
+export_size: 5
+export_device: cpu
+export_legacy_format: false

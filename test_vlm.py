@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 
 df = pd.read_parquet(
-    "/home/user150/LLaMA-Factory/data/dfcf/dfcf_guba_post_20100808.parquet"
+    "/home/user150/LLaMA-Factory/data/dfcf/dfcf_guba_post_20090422.parquet"
 )
 
 print(df.shape)

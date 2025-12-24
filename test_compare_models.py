@@ -116,6 +116,7 @@ def predict_sentiment(
 # ==================== 测试数据（带标签） ====================
 test_cases = [
     # (文本, 正确标签)
+    ("今天不乐观", "negative"),
     (
         "Apple stock surges 5% after strong quarterly earnings beat expectations",
         "positive",
@@ -130,7 +131,6 @@ test_cases = [
     ("The S&P 500 closed flat as investors await inflation data", "neutral"),
     ("Netflix subscriber growth exceeds analyst expectations", "positive"),
     ("Company faces massive lawsuit over environmental violations", "negative"),
-    ("GDP growth meets economists' forecasts for the quarter", "neutral"),
 ]
 
 print("=" * 100)

@@ -8,18 +8,17 @@ from tqdm import tqdm
 
 # Configuration
 API_URL = "http://localhost:8000/v1/chat/completions"
-INPUT_DIR = "/home/text_data/dfcf"
+INPUT_DIR = "/home/text_data/dfcf/dfcf_raw"
 OUTPUT_DIR = "/home/user150/LLaMA-Factory/data/dfcf"
-MODEL_NAME = "financial-sentiment"
+MODEL_NAME = "qwen3-32b"
+SYSTEM_PROMPT = """你是一位专业的金融分析师，擅长情感分析。你的任务是分析金融文本的情感，并将其分类为以下三类之一：positive（积极）、neutral（中性）或 negative（消极）。
 
-SYSTEM_PROMPT = """You are an expert financial analyst specializing in sentiment analysis. Your task is to analyze the sentiment of financial texts and classify them into one of three categories: positive, neutral, or negative.
+分类指南：
+- positive：表示乐观的前景、增长潜力、有利的市场条件或良好的财务表现。
+- neutral：表示事实性信息，没有明显的积极或消极含义。
+- negative：表示悲观的前景、下滑、不利的市场条件或糟糕的财务表现。
 
-Guidelines:
-- positive: Indicates optimistic outlook, growth potential, favorable market conditions, or good financial performance.
-- neutral: Indicates factual information without clear positive or negative implications.
-- negative: Indicates pessimistic outlook, decline, unfavorable market conditions, or poor financial performance.
-
-Respond with only one word: positive, neutral, or negative."""
+只回复一个词：positive、neutral 或 negative。"""
 
 
 def get_sentiment(text):
@@ -32,11 +31,11 @@ def get_sentiment(text):
             {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "user",
-                "content": f"Analyze the sentiment of the following financial text and classify it as positive, neutral, or negative.\n\nText: {text}",
+                "content": f"分析以下金融文本的情感，将其分类为 positive（积极）、neutral（中性）或 negative（消极）。\n\n文本: {text}",
             },
         ],
         "temperature": 0.0,  # Deterministic
-        "max_tokens": 10,
+        "max_tokens": 1024,
     }
 
     try:
@@ -46,10 +45,13 @@ def get_sentiment(text):
         content = result["choices"][0]["message"]["content"].strip().lower()
 
         if "positive" in content:
+            print(f"Positive detected in {content}: {text}")
             return 1
         elif "negative" in content:
+            print(f"Negative detected in {content}: {text}")
             return -1
         else:
+            print(f"Neutral detected in {content}: {text}")
             return 0
     except Exception as e:
         print(f"Error processing text: {text[:50]}... Error: {e}")
@@ -79,7 +81,7 @@ def process_file(file_path):
         # Use ThreadPoolExecutor for parallel API calls
         # Adjust max_workers based on vLLM capacity
         results = []
-        with ThreadPoolExecutor(max_workers=20) as executor:
+        with ThreadPoolExecutor(max_workers=50) as executor:
             results = list(
                 tqdm(
                     executor.map(get_sentiment, df["post_content"]),
@@ -98,24 +100,9 @@ def process_file(file_path):
         print(f"Failed to process {filename}: {e}")
 
 
-def wait_for_server():
-    print("Waiting for vLLM server to be ready...")
-    while True:
-        try:
-            response = requests.get("http://localhost:8000/v1/models")
-            if response.status_code == 200:
-                print("Server is ready!")
-                break
-        except requests.exceptions.ConnectionError:
-            pass
-        time.sleep(5)
-
-
 def main():
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
-
-    wait_for_server()
 
     files = glob.glob(os.path.join(INPUT_DIR, "*.csv"))
     print(f"Found {len(files)} files to process.")
